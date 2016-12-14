@@ -548,7 +548,7 @@ class UnitViewSet(munigeo_api.GeoModelAPIView, JSONAPIViewSet, viewsets.ReadOnly
                 Q(extensions__additional_maintenance_organization=maintenance_organization))
 
         if 'observations' in self.include_fields:
-            queryset = queryset.prefetch_related('observation_set__property__allowed_values').prefetch_related('observation_set__value')
+            queryset = queryset.prefetch_related('observation_set__property__allowed_values')#.prefetch_related('observation_set__value')
         if 'connections' in self.include_fields:
             queryset = queryset.prefetch_related('connections')
         return queryset

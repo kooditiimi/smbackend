@@ -29,17 +29,26 @@ class ObservationSerializer(serializers.BaseSerializer):
     def to_representation(self, obj):
         observable_property = obj.property
         allowed_value = obj.value
-        serialized_allowed_value = AllowedValueSerializer(allowed_value, read_only=True).data
-        name = serialized_allowed_value['name']
-        return dict(
+        print(allowed_value)
+        if isinstance(allowed_value, models.AllowedValue):
+            serialized_allowed_value = AllowedValueSerializer(allowed_value, read_only=True).data
+            name = serialized_allowed_value['name']
+            value = observable_property.get_external_value(obj.value)
+            quality=allowed_value.quality
+        elif isinstance(allowed_value, str):
+            value = { 'fi': allowed_value }
+            name = None
+            quality = 'unknown'
+        ret = dict(
             unit=int(obj.unit_id),
             id=obj.id,
             property=obj.property_id,
             time=timezone.localtime(obj.time).strftime('%Y-%m-%dT%H:%M:%S.%f%z'),
-            value=observable_property.get_external_value(obj.value),
-            quality=allowed_value.quality,
-            name=name,
+            value=value
         )
+        if name:
+            ret['name'] = name
+        return ret
     def to_internal_value(self, data):
         if 'time' in data:
             raise ValidationError(
