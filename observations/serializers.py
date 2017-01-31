@@ -22,18 +22,20 @@ class ObservablePropertySerializer(TranslatedModelSerializer):
 class ObservationSerializer(serializers.BaseSerializer):
     def to_representation(self, obj):
         observable_property = obj.property
-        allowed_value = obj.value
-        serialized_allowed_value = AllowedValueSerializer(allowed_value, read_only=True).data
-        name = serialized_allowed_value['name']
-        return dict(
+
+        result = dict(
             unit=int(obj.unit_id),
             id=obj.id,
             property=obj.property_id,
             time=timezone.localtime(obj.time).strftime('%Y-%m-%dT%H:%M:%S.%f%z'),
-            value=observable_property.get_external_value(obj.value),
-            quality=allowed_value.quality,
-            name=name,
+            value=obj.get_external_value(),
         )
+        if observable_property.get_observation_type() == 'categorical':
+            allowed_value = obj.value
+            result['quality'] = allowed_value.quality
+            serialized_allowed_value = AllowedValueSerializer(allowed_value, read_only=True).data
+            result['name'] = serialized_allowed_value['name']
+        return result
     def to_internal_value(self, data):
         if 'time' in data:
             raise ValidationError(
@@ -50,11 +52,10 @@ class ObservationSerializer(serializers.BaseSerializer):
     def create(self, validated_data):
         property = validated_data['property_id']
         observable_property = models.ObservableProperty.objects.get(id=property)
-        validated_data['value'] = observable_property.get_internal_value(
-            validated_data['value'])
-        observation_type = observable_property.observation_type
+        validated_data['value'] = observable_property.get_internal_value(validated_data['value'])
         with transaction.atomic():
             if (validated_data['add_maintenance_observation']):
+                # TODO: refactor below
                 if validated_data['property_id'] == 'ski_trail_condition':
                     observable_property = models.ObservableProperty.objects.get(id='ski_trail_maintenance')
                     MaintenanceModelClass = apps.get_model(observable_property.observation_type)
